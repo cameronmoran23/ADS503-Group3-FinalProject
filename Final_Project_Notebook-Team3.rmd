@@ -1,0 +1,27 @@
+---
+title: "ADS 503 Final Project - Team 3"
+author: "Cameron Moran, Brandon Rodriguez-Andrade, Jacob Moore"
+format: 
+    html: 
+        toc: true
+        toc-depth: 4
+        code-fold: true
+    pdf: default
+    docx: default
+editor: visual
+---
+
+```{r}
+library(mlbench)
+library(tidyverse)
+library(GGally)
+library(caret)
+library(e1071)
+library(scales)
+library(AppliedPredictiveModeling)
+library(gt)
+library(RANN)
+library(kernlab)
+library(randomForest)
+```
+

@@ -1,3 +1,6 @@
+# bank_fraud.csv is too large to push so ignore it
+bank_fraud.csv
+
 # History files
 .Rhistory
 .Rapp.history

@@ -58,6 +58,11 @@ print(dim(bank_fraud_1))
 ```
 
 ```{r}
+# Check for missing values
+print(colSums(is.na(bank_fraud)))
+```
+
+```{r}
 # Organization cell
 # Place subsets into list for iteration purposes
 bank_fraud_df_list <- list(bank_fraud_1, bank_fraud_5, bank_fraud_10, bank_fraud_25, bank_fraud_50, bank_fraud)
@@ -82,11 +87,6 @@ target_name <- "is_fraud"
 ```
 
 ```{r}
-# Check for missing values in the full dataset
-print(colSums(is.na(bank_fraud)))
-```
-
-```{r}
 # Start with distributions of continuous predictors using the full dataset
 for (predictor in continuous_predictors_name_list) {
   print(ggplot(bank_fraud, aes_string(x = predictor)) + 
@@ -95,7 +95,7 @@ for (predictor in continuous_predictors_name_list) {
 ```
 
 ```{r}
-# Show distributions of categorical predictors using the full dataset
+# Show distributions of categorical predictors
 for (predictor in categorical_predictors_name_list) {
   print(ggplot(bank_fraud, aes_string(x = predictor)) + 
           geom_bar(color = "black", fill = "blue") + ggtitle(paste("Distribution of", predictor)))
@@ -108,7 +108,7 @@ ggplot(bank_fraud, aes(x = is_fraud)) + geom_bar(color = "black", fill = "blue")
 ```
 
 ```{r}
-# Show plots of continuous predictors vs target variable using the full dataset grouped by is_fraud for boxplots
+# Show plots of continuous predictors vs target variable grouped by is_fraud for boxplots
 for (predictor in continuous_predictors_name_list) {
   print(ggplot(bank_fraud, aes_string(x = target_name, y = predictor)) + 
           geom_boxplot() + ggtitle(paste("Boxplot of", predictor, "by", target_name)))
@@ -116,7 +116,15 @@ for (predictor in continuous_predictors_name_list) {
 ```
 
 ```{r}
-# Check for relationships between variables with a correlation heatmap using the full dataset
+# Check for relationships between variables with a correlation heatmap
 corr_matrix <- cor(bank_fraud[, continuous_predictors_name_list])
 ggcorrplot(corr_matrix, lab = TRUE, digits = 4, title = "Correlation Heatmap of Continuous Predictors")
+```
+
+```{r}
+# Visually identify outliers in the continuous predictors using boxplots
+for (predictor in continuous_predictors_name_list) {
+  print(ggplot(bank_fraud, aes_string(x = predictor)) + 
+          geom_boxplot() + ggtitle(paste("Boxplot of", predictor)))
+}
 ```

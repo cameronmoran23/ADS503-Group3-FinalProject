@@ -23,5 +23,100 @@ library(gt)
 library(RANN)
 library(kernlab)
 library(randomForest)
+library(ggcorrplot)
+seed <- 123
 ```
 
+```{r}
+# load the data from bank_fraud.csv
+bank_fraud <- read.csv("bank_fraud.csv")
+# check shape of df
+print(dim(bank_fraud))
+
+# check column names
+print(colnames(bank_fraud))
+```
+
+```{r}
+# The dataset is 1 million rows by 26 columns, with two possible target colums (is_fraud and fraud_type). is_fraud is the target variable we will use and we will drop the other
+# Drop the fraud_type column
+bank_fraud <- subset(bank_fraud, select = -fraud_type)
+
+# Convert is_fraud to a factor for classification purposes
+bank_fraud$is_fraud <- as.factor(bank_fraud$is_fraud)
+
+# Since the dataset is so large, we will also select smaller subset (1%, 5%, 10%, 25%, 50%) to train our models on and compare the results
+set.seed(seed)
+bank_fraud_1 <- bank_fraud[sample(nrow(bank_fraud), size = nrow(bank_fraud)*0.01), ]
+bank_fraud_5 <- bank_fraud[sample(nrow(bank_fraud), size = nrow(bank_fraud)*0.05), ]
+bank_fraud_10 <- bank_fraud[sample(nrow(bank_fraud), size = nrow(bank_fraud)*0.10), ]
+bank_fraud_25 <- bank_fraud[sample(nrow(bank_fraud), size = nrow(bank_fraud)*0.25), ]
+bank_fraud_50 <- bank_fraud[sample(nrow(bank_fraud), size = nrow(bank_fraud)*0.50), ]
+
+# Check shape of the first subset to confirm
+print(dim(bank_fraud_1))
+```
+
+```{r}
+# Organization cell
+# Place subsets into list for iteration purposes
+bank_fraud_df_list <- list(bank_fraud_1, bank_fraud_5, bank_fraud_10, bank_fraud_25, bank_fraud_50, bank_fraud)
+
+# place predictors into a list for iteration purposes
+predictors_name_list <- c("hour_of_day", "is_weekend", "country",
+                      "city", "merchant_category", "payment_method", "device_type",
+                      "customer_age", "credit_score", "account_age_years", "account_balance",
+                      "transaction_amount", "num_prev_transactions", "transaction_freq_monthly",
+                      "distance_from_home_km", "time_since_last_txn_hrs", "is_international",
+                      "failed_attempts", "pin_changed_recently")
+
+continuous_predictors_name_list <- c("customer_age", "credit_score", "account_age_years", "account_balance",
+                      "transaction_amount", "num_prev_transactions", "transaction_freq_monthly",
+                      "distance_from_home_km", "time_since_last_txn_hrs")
+
+categorical_predictors_name_list <- c("hour_of_day", "is_weekend", "country",
+                      "city", "merchant_category", "payment_method", "device_type",
+                      "is_international", "failed_attempts", "pin_changed_recently")
+
+target_name <- "is_fraud"
+```
+
+```{r}
+# Check for missing values in the full dataset
+print(colSums(is.na(bank_fraud)))
+```
+
+```{r}
+# Start with distributions of continuous predictors using the full dataset
+for (predictor in continuous_predictors_name_list) {
+  print(ggplot(bank_fraud, aes_string(x = predictor)) + 
+          geom_histogram(bins = 25, color = "black", fill = "blue") + ggtitle(paste("Distribution of", predictor)))
+}
+```
+
+```{r}
+# Show distributions of categorical predictors using the full dataset
+for (predictor in categorical_predictors_name_list) {
+  print(ggplot(bank_fraud, aes_string(x = predictor)) + 
+          geom_bar(color = "black", fill = "blue") + ggtitle(paste("Distribution of", predictor)))
+}
+```
+
+```{r}
+# Show distribution of target variable
+ggplot(bank_fraud, aes(x = is_fraud)) + geom_bar(color = "black", fill = "blue") + ggtitle("Distribution of is_fraud")
+```
+
+```{r}
+# Show plots of continuous predictors vs target variable using the full dataset grouped by is_fraud for boxplots
+for (predictor in continuous_predictors_name_list) {
+  print(ggplot(bank_fraud, aes_string(x = target_name, y = predictor)) + 
+          geom_boxplot() + ggtitle(paste("Boxplot of", predictor, "by", target_name)))
+}
+```
+
+```{r}
+# Check for relationships between variables with a correlation heatmap using the full dataset
+corr_matrix <- cor(bank_fraud[, continuous_predictors_name_list])
+ggcorrplot(corr_matrix, lab = TRUE, digits = 4, title = "Correlation Heatmap of Continuous Predictors")
+```

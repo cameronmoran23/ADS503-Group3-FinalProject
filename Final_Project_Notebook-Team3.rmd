@@ -89,16 +89,16 @@ target_name <- "is_fraud"
 ```{r}
 # Start with distributions of continuous predictors using the full dataset
 for (predictor in continuous_predictors_name_list) {
-  print(ggplot(bank_fraud, aes_string(x = predictor)) + 
-          geom_histogram(bins = 25, color = "black", fill = "blue") + ggtitle(paste("Distribution of", predictor)))
+    print(ggplot(bank_fraud, aes_string(x = predictor)) + 
+        geom_histogram(bins = 25, color = "black", fill = "blue") + ggtitle(paste("Distribution of", predictor)))
 }
 ```
 
 ```{r}
 # Show distributions of categorical predictors
 for (predictor in categorical_predictors_name_list) {
-  print(ggplot(bank_fraud, aes_string(x = predictor)) + 
-          geom_bar(color = "black", fill = "blue") + ggtitle(paste("Distribution of", predictor)))
+    print(ggplot(bank_fraud, aes_string(x = predictor)) + 
+        geom_bar(color = "black", fill = "blue") + ggtitle(paste("Distribution of", predictor)))
 }
 ```
 
@@ -110,8 +110,8 @@ ggplot(bank_fraud, aes(x = is_fraud)) + geom_bar(color = "black", fill = "blue")
 ```{r}
 # Show plots of continuous predictors vs target variable grouped by is_fraud for boxplots
 for (predictor in continuous_predictors_name_list) {
-  print(ggplot(bank_fraud, aes_string(x = target_name, y = predictor)) + 
-          geom_boxplot() + ggtitle(paste("Boxplot of", predictor, "by", target_name)))
+    print(ggplot(bank_fraud, aes_string(x = target_name, y = predictor)) + 
+        geom_boxplot() + ggtitle(paste("Boxplot of", predictor, "by", target_name)))
 }
 ```
 
@@ -124,7 +124,69 @@ ggcorrplot(corr_matrix, lab = TRUE, digits = 4, title = "Correlation Heatmap of 
 ```{r}
 # Visually identify outliers in the continuous predictors using boxplots
 for (predictor in continuous_predictors_name_list) {
-  print(ggplot(bank_fraud, aes_string(x = predictor)) + 
-          geom_boxplot() + ggtitle(paste("Boxplot of", predictor)))
+    print(ggplot(bank_fraud, aes_string(x = predictor)) + 
+        geom_boxplot() + ggtitle(paste("Boxplot of", predictor)))
 }
+```
+
+```{r}
+# Basic summary statistics of continuous predictors
+print(summary(bank_fraud[, continuous_predictors_name_list]))
+```
+
+```{r}
+# Check for degenerate predictors (predictors with only one unique value)
+for (predictor in continuous_predictors_name_list) {
+    if (length(unique(bank_fraud[[predictor]])) == 1) {
+        print(paste("Degenerate predictor:", predictor, "with unique value:", unique(bank_fraud[[predictor]])))
+    }
+}
+```
+
+```{r}
+# Check how well components of PCA can explain the variance of the data
+pca_output <- prcomp(bank_fraud[, continuous_predictors_name_list])
+print(summary(pca_output))
+```
+
+```{r}
+# Create train/test partitions for each of the subsets
+set.seed(seed)
+training_set_list <- list()
+test_set_list <- list()
+for (subset in bank_fraud_df_list) {
+    curr_train_rows <- createDataPartition(subset[[target_name]], p = 0.8, list = FALSE)
+    curr_train_data <- subset[curr_train_rows, ]
+    curr_test_data <- subset[-curr_train_rows, ]
+    training_set_list <- append(training_set_list, list(curr_train_data))
+    test_set_list <- append(test_set_list, list(curr_test_data))
+}
+
+# Now there are 2 lists (training_set_list and test_set_list) containing 6 dataframes each
+# The order of subsets is 1%, 5%, 10%, 25%, 50%, and 100% of the original dataset in both lists
+# So this means training_set_list[1] is the training set for the 1% subset
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
 ```

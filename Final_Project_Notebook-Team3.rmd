@@ -168,8 +168,40 @@ for (subset in bank_fraud_df_list) {
 ```
 
 ```{r}
+# Start building some of the models we learned about in class
+# This is why the subsets are necessary, my computer can't handle training a model like random forest on 1 million rows in a reasonable amount of time (even with default params)
+# We will do our training for complex models on the 1%, 5%, and 10% subsets and then train simpler models on the larger subsets
+set.seed(seed)
 
+# Train a random forest model on the 1% subset
+random_forest_model_1 <- randomForest(is_fraud ~ ., data = training_set_list[[1]], ntree = 100, importance = TRUE)
+predictions_rf_1 <- predict(random_forest_model_1, newdata = test_set_list[[1]])
+accuracy_rf_1 <- sum(predictions_rf_1 == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])
+print(paste("Random Forest Accuracy on 1% subset:", accuracy_rf_1))
+confusion_matrix_rf_1 <- table(test_set_list[[1]][[target_name]], predictions_rf_1)
+print("Confusion Matrix for Random Forest on 1% subset:")
+print(confusion_matrix_rf_1)
+
+# Train a random forest model on the 5% subset
+random_forest_model_5 <- randomForest(is_fraud ~ ., data = training_set_list[[2]], ntree = 100, importance = TRUE)
+predictions_rf_5 <- predict(random_forest_model_5, newdata = test_set_list[[2]])
+accuracy_rf_5 <- sum(predictions_rf_5 == test_set_list[[2]][[target_name]]) / nrow(test_set_list[[2]])
+print(paste("Random Forest Accuracy on 5% subset:", accuracy_rf_5))
+confusion_matrix_rf_5 <- table(test_set_list[[2]][[target_name]], predictions_rf_5)
+print("Confusion Matrix for Random Forest on 5% subset:")
+print(confusion_matrix_rf_5)
+
+# Train a random forest model on the 10% subset
+random_forest_model_10 <- randomForest(is_fraud ~ ., data = training_set_list[[3]], ntree = 100, importance = TRUE)
+predictions_rf_10 <- predict(random_forest_model_10, newdata = test_set_list[[3]])
+accuracy_rf_10 <- sum(predictions_rf_10 == test_set_list[[3]][[target_name]]) / nrow(test_set_list[[3]])
+print(paste("Random Forest Accuracy on 10% subset:", accuracy_rf_10))
+confusion_matrix_rf_10 <- table(test_set_list[[3]][[target_name]], predictions_rf_10)
+print("Confusion Matrix for Random Forest on 10% subset:")
+print(confusion_matrix_rf_10)
 ```
+
+**The models seem to be predicting the majority class (not fraud) for almost all rows. This means the models achieve ~94.5% accuracy, but this is only because the dataset is imbalance with around 5.5% of all observations being fraud. These models are not ideal for a final model. They just serve a decent baseline to understanding how models are likely to perform with no tuning.**
 
 ```{r}
 

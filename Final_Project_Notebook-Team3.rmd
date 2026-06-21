@@ -12,6 +12,7 @@ editor: visual
 ---
 
 ```{r}
+# Load libraries used in the file
 library(mlbench)
 library(tidyverse)
 library(GGally)
@@ -27,8 +28,8 @@ library(ggcorrplot)
 library(pROC)
 library(nnet)
 
+# seed to be used for all set.seed() calls
 SEED <- 123
-RETRAIN <- TRUE
 ```
 
 ```{r}
@@ -40,6 +41,8 @@ print(dim(bank_fraud))
 # check column names
 print(colnames(bank_fraud))
 ```
+
+*The dataset has 1 million rows and 26 columns.*
 
 ```{r}
 # The dataset is 1 million rows by 26 columns, with two possible target colums (is_fraud and fraud_type). is_fraud is the target variable we will use and we will drop the other
@@ -54,10 +57,13 @@ levels(bank_fraud$is_fraud) <- c("not_fraud", "fraud")
 # Keeping a copy of the of the original data for EDA purposes
 bank_fraud_raw <- bank_fraud
 
-# I moved this chunk here so that I could apply Boxcox transformation on subset data
 continuous_predictors_name_list <- c("customer_age", "credit_score", "account_age_years", "account_balance",
                       "transaction_amount", "num_prev_transactions", "transaction_freq_monthly",
                       "distance_from_home_km", "time_since_last_txn_hrs")
+
+categorical_predictors_name_list <- c("hour_of_day", "is_weekend", "country",
+                      "city", "merchant_category", "payment_method", "device_type",
+                      "is_international", "failed_attempts", "pin_changed_recently")
 
 # Preprocessing continuous predictors using BoxCox transformation, centering, and scaling
 trans <- preProcess(bank_fraud[, continuous_predictors_name_list],
@@ -70,8 +76,7 @@ head(transformed)
 # Replacing the continuous predictor column in bank_fraud with the transformed variables
 bank_fraud[, continuous_predictors_name_list] <- transformed
 
-
-# Since the dataset is so large, we will also select smaller subset (1%, 1%, 5%, 10%, 25%, 50%) to train our models on and compare the results
+# Since the dataset is so large, we will also select smaller subset (1%, 5%, 10%, 25%, 50%) to train our models on and compare the results
 set.seed(SEED)
 bank_fraud_1 <- bank_fraud[sample(nrow(bank_fraud), size = nrow(bank_fraud)*0.01), ]
 bank_fraud_5 <- bank_fraud[sample(nrow(bank_fraud), size = nrow(bank_fraud)*0.05), ]
@@ -83,32 +88,26 @@ bank_fraud_50 <- bank_fraud[sample(nrow(bank_fraud), size = nrow(bank_fraud)*0.5
 print(dim(bank_fraud_1))
 ```
 
+*First subset has 10,000 rows and 25 columns which is correct.*
+
 ```{r}
 # Check for missing values
 print(colSums(is.na(bank_fraud)))
 ```
 
+*No missing values present because the dataset is synthetic.*
+
 ```{r}
-# Organization cell
 # Place subsets into list for iteration purposes
 bank_fraud_df_list <- list(bank_fraud_1, bank_fraud_5, bank_fraud_10, bank_fraud_25, bank_fraud_50, bank_fraud)
 
-# place predictors into a list for iteration purposes
+# place predictors into list for iteration purposes as well
 predictors_name_list <- c("hour_of_day", "is_weekend", "country",
                       "city", "merchant_category", "payment_method", "device_type",
                       "customer_age", "credit_score", "account_age_years", "account_balance",
                       "transaction_amount", "num_prev_transactions", "transaction_freq_monthly",
                       "distance_from_home_km", "time_since_last_txn_hrs", "is_international",
                       "failed_attempts", "pin_changed_recently")
-
-# Had to add above in order to apply BoxCox transformation on subset data (This is why I commented out)
-#continuous_predictors_name_list <- c("customer_age", "credit_score", "account_age_years", "account_balance",
- #                     "transaction_amount", "num_prev_transactions", "transaction_freq_monthly",
-  #                    "distance_from_home_km", "time_since_last_txn_hrs")
-
-categorical_predictors_name_list <- c("hour_of_day", "is_weekend", "country",
-                      "city", "merchant_category", "payment_method", "device_type",
-                      "is_international", "failed_attempts", "pin_changed_recently")
 
 target_name <- "is_fraud"
 ```
@@ -121,6 +120,8 @@ percent_legitimate <- 1 - percent_fraud
 print(paste("Percentage of fraudulent transactions:", percent_fraud))
 print(paste("Percentage of legitimate transactions:", percent_legitimate))
 ```
+
+*About 5.5% are fraud and 94.5% are not fraud so there is a large class imbalance.*
 
 ```{r}
 # Start with distributions of continuous predictors using the full dataset
@@ -156,6 +157,8 @@ for (predictor in continuous_predictors_name_list) {
 corr_matrix <- cor(bank_fraud_raw[, continuous_predictors_name_list])
 ggcorrplot(corr_matrix, lab = TRUE, digits = 4, title = "Correlation Heatmap of Continuous Predictors")
 ```
+
+*Almost no correlations between any predictors.*
 
 ```{r}
 # Visually identify outliers in the continuous predictors using boxplots
@@ -200,7 +203,7 @@ for (subset in bank_fraud_df_list) {
 
 # Now there are 2 lists (training_set_list and test_set_list) containing 7 dataframes each
 # The order of subsets is 1%, 5%, 10%, 25%, 50%, and 100% of the original dataset in both lists
-# So this means training_set_list[1] is the training set for the 1% subset
+# So this means training_set_list[[1]] is the training set for the 1% subset
 ```
 
 ```{r}
@@ -218,6 +221,7 @@ print(table(test_set_list[[1]][[target_name]], random_forest_1_predictions))
 # - Logistic Regression
 logistic_regression_1 <- glm(predictors_formula, data = training_set_list[[1]], family = binomial)
 logistic_regression_1_predictions <- predict(logistic_regression_1, newdata = test_set_list[[1]])
+logistic_regression_1_class_predictions <- ifelse(logistic_regression_1_predictions > 0.5, "fraud", "not_fraud")
 print(paste0("Logistic Regression Test Accuracy on 1% subset: ", sum(logistic_regression_1_class_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
 print("Confusion Matrix for Logistic Regression on 1% subset:")
 print(table(test_set_list[[1]][[target_name]], logistic_regression_1_predictions))
@@ -273,7 +277,7 @@ print("Confusion Matrix for Nearest Shrunken Centroids on 1% subset:")
 print(table(test_set_list[[1]][[target_name]], nearest_shrunken_centroids_1_predictions))
 ```
 
-**The models seem to be predicting the majority class (not fraud) for almost all rows. This means the models achieve \~94.5% accuracy, but this is only because the dataset is imbalance with around 5.5% of all observations being fraud. These models are not ideal for a final model. They just serve a decent baseline to understanding how models are likely to perform with no tuning.**
+*The models seem to be predicting the majority class (not fraud) for almost all rows. This means the models achieve \~94.5% accuracy, but this is only because the dataset is imbalance with around 5.5% of all observations being fraud. These models are not ideal for a final model. They just serve a decent baseline to understanding how models are likely to perform with no tuning.*
 
 ```{r}
 # Based on the above results, minority class occurences need to be amplified/resampled for models to predict fraud cases more accurately

@@ -12,7 +12,7 @@ The dataset is too large to be stored directly on GitHub, so it is not included 
 
 1. Go to the dataset page on Kaggle: https://www.kaggle.com/datasets/nafiulislam490/bank-transaction-fraud-detection-dataset
 2. Sign in (or create a free Kaggle account if you don't have one).
-3. Click the "Download"" button to download the dataset as a '.zip' file.
+3. Click the "Download" button to download the dataset as a '.zip' file.
 4. Unzip the downloaded file.
 5. Rename the extracted '.csv' file to 'bank_fraud.csv' and place it directly in the root of the project folder (the same folder as Final_Project_Notebook-Team3.rmd):
 6. Make sure the file is named exactly 'bank_fraud.csv'
@@ -22,7 +22,7 @@ To use this project, first clone the repository on your device using the command
 
 ```bash
 git init
-git clone https://github.com/a-kuduvalli/ADS-502-Final-Team-Project/blob/main/README.md
+git clone https://github.com/cameronmoran23/ADS503-Group3-FinalProject
 ```
 
 ## Project Objective/Goals:
@@ -57,6 +57,6 @@ The dataset is sourced from kaggle (Bank Transaction Fraud Detection Dataest), c
 - The dataset is 1 million rows by 26 columns. Since the dataset is so large, we ran into long wait times when training models. To address this, we created smaller subsets of the data (1%, 5%, 10%, 25%, 50%) to train and compare models on before scaling up.
 
 ## Acknowledgements
-- Professor: Ebrahim Tarshizi, University of San Diego
+- Professor: Dr. Ebrahim Tarshizi, University of San Diego
 - ADS-503: Applied Predictive Modeling, University of San Diego
 - Kaggle - Bank Transaction Fraud Detection Dataset

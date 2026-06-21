@@ -24,6 +24,7 @@ library(RANN)
 library(kernlab)
 library(randomForest)
 library(ggcorrplot)
+library(pROC)
 seed <- 123
 ```
 
@@ -45,8 +46,30 @@ bank_fraud <- subset(bank_fraud, select = -fraud_type)
 # Convert is_fraud to a factor for classification purposes
 bank_fraud$is_fraud <- as.factor(bank_fraud$is_fraud)
 
+levels(bank_fraud$is_fraud) <- c("not_fraud", "fraud")
+
+# Keeping a copy of the of the original data for EDA purposes
+bank_fraud_raw <- bank_fraud
+
+# I moved this chunk here so that I could apply Boxcox transformation on subset data
+continuous_predictors_name_list <- c("customer_age", "credit_score", "account_age_years", "account_balance",
+                      "transaction_amount", "num_prev_transactions", "transaction_freq_monthly",
+                      "distance_from_home_km", "time_since_last_txn_hrs")
+
+# Preprocessing continuous predictors using BoxCox transformation, centering, and scaling
+trans <- preProcess(bank_fraud[, continuous_predictors_name_list],
+                    method = c("BoxCox", "center", "scale"))
+
+# Applying the transformations to the original data
+transformed <- predict(trans, bank_fraud[, continuous_predictors_name_list])
+head(transformed)
+
+# Replacing the continuous predictor column in bank_fraud with the transformed variables
+bank_fraud[, continuous_predictors_name_list] <- transformed
+
+
 # Since the dataset is so large, we will also select smaller subset (1%, 5%, 10%, 25%, 50%) to train our models on and compare the results
-set.seed(seed)
+set.seed(123)
 bank_fraud_1 <- bank_fraud[sample(nrow(bank_fraud), size = nrow(bank_fraud)*0.01), ]
 bank_fraud_5 <- bank_fraud[sample(nrow(bank_fraud), size = nrow(bank_fraud)*0.05), ]
 bank_fraud_10 <- bank_fraud[sample(nrow(bank_fraud), size = nrow(bank_fraud)*0.10), ]
@@ -75,9 +98,10 @@ predictors_name_list <- c("hour_of_day", "is_weekend", "country",
                       "distance_from_home_km", "time_since_last_txn_hrs", "is_international",
                       "failed_attempts", "pin_changed_recently")
 
-continuous_predictors_name_list <- c("customer_age", "credit_score", "account_age_years", "account_balance",
-                      "transaction_amount", "num_prev_transactions", "transaction_freq_monthly",
-                      "distance_from_home_km", "time_since_last_txn_hrs")
+# Had to add above in order to apply BoxCox transformation on subset data (This is why I commented out)
+#continuous_predictors_name_list <- c("customer_age", "credit_score", "account_age_years", "account_balance",
+ #                     "transaction_amount", "num_prev_transactions", "transaction_freq_monthly",
+  #                    "distance_from_home_km", "time_since_last_txn_hrs")
 
 categorical_predictors_name_list <- c("hour_of_day", "is_weekend", "country",
                       "city", "merchant_category", "payment_method", "device_type",
@@ -89,7 +113,7 @@ target_name <- "is_fraud"
 ```{r}
 # Start with distributions of continuous predictors using the full dataset
 for (predictor in continuous_predictors_name_list) {
-    print(ggplot(bank_fraud, aes_string(x = predictor)) + 
+    print(ggplot(bank_fraud_raw, aes_string(x = predictor)) + 
         geom_histogram(bins = 25, color = "black", fill = "blue") + ggtitle(paste("Distribution of", predictor)))
 }
 ```
@@ -97,48 +121,49 @@ for (predictor in continuous_predictors_name_list) {
 ```{r}
 # Show distributions of categorical predictors
 for (predictor in categorical_predictors_name_list) {
-    print(ggplot(bank_fraud, aes_string(x = predictor)) + 
+    print(ggplot(bank_fraud_raw, aes_string(x = predictor)) + 
         geom_bar(color = "black", fill = "blue") + ggtitle(paste("Distribution of", predictor)))
 }
 ```
 
 ```{r}
 # Show distribution of target variable
-ggplot(bank_fraud, aes(x = is_fraud)) + geom_bar(color = "black", fill = "blue") + ggtitle("Distribution of is_fraud")
+ggplot(bank_fraud_raw, aes(x = is_fraud)) + geom_bar(color = "black", fill = "blue") + ggtitle("Distribution of is_fraud")
 ```
 
 ```{r}
 # Show plots of continuous predictors vs target variable grouped by is_fraud for boxplots
 for (predictor in continuous_predictors_name_list) {
-    print(ggplot(bank_fraud, aes_string(x = target_name, y = predictor)) + 
+    print(ggplot(bank_fraud_raw, aes_string(x = target_name, y = predictor)) + 
         geom_boxplot() + ggtitle(paste("Boxplot of", predictor, "by", target_name)))
 }
 ```
 
 ```{r}
 # Check for relationships between variables with a correlation heatmap
-corr_matrix <- cor(bank_fraud[, continuous_predictors_name_list])
+corr_matrix <- cor(bank_fraud_raw[, continuous_predictors_name_list])
 ggcorrplot(corr_matrix, lab = TRUE, digits = 4, title = "Correlation Heatmap of Continuous Predictors")
 ```
 
 ```{r}
 # Visually identify outliers in the continuous predictors using boxplots
 for (predictor in continuous_predictors_name_list) {
-    print(ggplot(bank_fraud, aes_string(x = predictor)) + 
+    print(ggplot(bank_fraud_raw, aes_string(x = predictor)) + 
         geom_boxplot() + ggtitle(paste("Boxplot of", predictor)))
 }
 ```
 
+
 ```{r}
 # Basic summary statistics of continuous predictors
-print(summary(bank_fraud[, continuous_predictors_name_list]))
+print(summary(bank_fraud_raw[, continuous_predictors_name_list]))
 ```
 
 ```{r}
 # Check for degenerate predictors (predictors with only one unique value)
 for (predictor in continuous_predictors_name_list) {
-    if (length(unique(bank_fraud[[predictor]])) == 1) {
-        print(paste("Degenerate predictor:", predictor, "with unique value:", unique(bank_fraud[[predictor]])))
+    if (length(unique(bank_fraud_raw[[predictor]])) == 1) {
+        print(paste("Degenerate predictor:", predictor, "with unique value:", unique(bank_fraud_raw[[predictor]])))
     }
 }
 ```
@@ -151,7 +176,7 @@ print(summary(pca_output))
 
 ```{r}
 # Create train/test partitions for each of the subsets
-set.seed(seed)
+set.seed(123)
 training_set_list <- list()
 test_set_list <- list()
 for (subset in bank_fraud_df_list) {
@@ -171,7 +196,7 @@ for (subset in bank_fraud_df_list) {
 # Start building some of the models we learned about in class
 # This is why the subsets are necessary, my computer can't handle training a model like random forest on 1 million rows in a reasonable amount of time (even with default params)
 # We will do our training for complex models on the 1%, 5%, and 10% subsets and then train simpler models on the larger subsets
-set.seed(seed)
+set.seed(123)
 
 # Train a random forest model on the 1% subset
 random_forest_model_1 <- randomForest(is_fraud ~ ., data = training_set_list[[1]], ntree = 100, importance = TRUE)
@@ -201,10 +226,53 @@ print("Confusion Matrix for Random Forest on 10% subset:")
 print(confusion_matrix_rf_10)
 ```
 
-**The models seem to be predicting the majority class (not fraud) for almost all rows. This means the models achieve ~94.5% accuracy, but this is only because the dataset is imbalance with around 5.5% of all observations being fraud. These models are not ideal for a final model. They just serve a decent baseline to understanding how models are likely to perform with no tuning.**
+**The models seem to be predicting the majority class (not fraud) for almost all rows. This means the models achieve \~94.5% accuracy, but this is only because the dataset is imbalance with around 5.5% of all observations being fraud. These models are not ideal for a final model. They just serve a decent baseline to understanding how models are likely to perform with no tuning.**
 
 ```{r}
+ctrl <- trainControl(method = "cv",
+                     summaryFunction = twoClassSummary,
+                     classProbs = TRUE,
+                     savePredictions = TRUE)
 
+lr_models <- list()
+testResults_list <- list()
+subset_labels <- c("1%", "5%", "10%")
+
+for (i in 1:3) {
+    print(paste0("Logistic Regression — ", subset_labels[i], " subset"))
+
+    trainData <- training_set_list[[i]]
+    testData <- test_set_list[[i]]
+    predictor_cols <- predictors_name_list
+
+    set.seed(476)
+    lrFit <- train(x = trainData[, predictor_cols],
+                   y = trainData$is_fraud,
+                   method = "glm",
+                   metric = "ROC",
+                   trControl = ctrl)
+    print(lrFit)
+    lr_models[[i]] <- lrFit
+
+    # Confusion matrix from cross-validated predictions
+    lrCM <- confusionMatrix(lrFit, norm = "none")
+    print(lrCM)
+
+    # ROC curve from cross-validated predictions
+    lrRoc <- roc(response = lrFit$pred$obs,
+                predictor = lrFit$pred$fraud,
+                levels = rev(levels(lrFit$pred$obs)))
+    plot(lrRoc, legacy.axes = TRUE, main = paste("Logistic Regression ROC -", subset_labels[i]))
+    print(paste0("AUC for the ", subset_labels[i], " subset: ", round(lrRoc$auc, 3)))
+
+    # Variable importance
+    lrImp <- varImp(lrFit, scale = FALSE)
+    plot(lrImp)
+
+    # Saving test-set predictions for the later model comparison step
+    testResults_list[[i]] <- data.frame(obs = testData$is_fraud,
+                                         LR = predict(lrFit, testData[, predictor_cols]))
+}
 ```
 
 ```{r}

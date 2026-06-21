@@ -7,6 +7,16 @@
 - Brandon Rodriguez-Andrade
 - Jacob Moore
 
+### Downloading the Dataset
+The dataset is too large to be stored directly on GitHub, so it is not included in the repository. Each team member needs to download it locally before running the notebook:
+
+1. Go to the dataset page on Kaggle: https://www.kaggle.com/datasets/nafiulislam490/bank-transaction-fraud-detection-dataset
+2. Sign in (or create a free Kaggle account if you don't have one).
+3. Click the "Download"" button to download the dataset as a '.zip' file.
+4. Unzip the downloaded file.
+5. Rename the extracted '.csv' file to 'bank_fraud.csv' and place it directly in the root of the project folder (the same folder as Final_Project_Notebook-Team3.rmd):
+6. Make sure the file is named exactly 'bank_fraud.csv'
+
 ## Installation
 To use this project, first clone the repository on your device using the command below:
 
@@ -14,16 +24,6 @@ To use this project, first clone the repository on your device using the command
 git init
 git clone https://github.com/a-kuduvalli/ADS-502-Final-Team-Project/blob/main/README.md
 ```
-
-### Downloading the Dataset
-The dataset is too large to be stored directly on GitHub, so it is not included in the repository. Each team member needs to download it locally before running the notebook:
-
-1. Go to the dataset page on Kaggle: https://www.kaggle.com/datasets/nafiulislam490/bank-transaction-fraud-detection-dataset
-2. Sign in or create an account.
-3. Click the "Download" button to download the dataset.
-4. Unzip the downloaded files/
-5. If it doesn't already exist, create a folder named 'data' in the root of this project and place the extracted '.csv' file inside it.
-6. Make sure the file name/path matches what's referenced in 'Final_Project_Notebook-Team3.rmd'. If it doesn't match either rename the file or update the file path in the notebook.
 
 ## Project Objective/Goals:
 This project applies predictive modeling techniques to detect fraudulent bank transactions using a large-scale synthetic data set of one million transactions. The team conducts exploratory data analysis, addresses significant class imbalance using re sampling techniques, and builds and compares multiple classification models. Model performance is evaluated using AUC-ROC, precision, recall, and F1-score.

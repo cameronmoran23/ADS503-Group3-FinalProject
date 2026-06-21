@@ -26,6 +26,7 @@ library(randomForest)
 library(ggcorrplot)
 library(pROC)
 library(nnet)
+
 SEED <- 123
 RETRAIN <- TRUE
 ```
@@ -206,25 +207,20 @@ for (subset in bank_fraud_df_list) {
 # Baseline model training (default hyperparameters) with 1% subset and evaluation to determine models to tune
 set.seed(SEED)
 predictors_formula <- as.formula(paste(target_name, "~", paste(predictors_name_list, collapse = " + ")))
+
 # - Random Forest
-if (RETRAIN) {
-    # train rf using predictors_name_list as predictors and is_fraud as target variable
-   random_forest_1 <- randomForest(predictors_formula, data = training_set_list[[1]])
-}
+random_forest_1 <- randomForest(predictors_formula, data = training_set_list[[1]])
 random_forest_1_predictions <- predict(random_forest_1, newdata = test_set_list[[1]])
 print(paste0("Random Forest Test Accuracy on 1% subset: ", sum(random_forest_1_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
 print("Confusion Matrix for Random Forest on 1% subset:")
 print(table(test_set_list[[1]][[target_name]], random_forest_1_predictions))
 
 # - Logistic Regression
-if (RETRAIN) {
-    logistic_regression_1 <- glm(predictors_formula, data = training_set_list[[1]], family = binomial)
-}
+logistic_regression_1 <- glm(predictors_formula, data = training_set_list[[1]], family = binomial)
 logistic_regression_1_predictions <- predict(logistic_regression_1, newdata = test_set_list[[1]])
-logistic_regression_1_class_predictions <- ifelse(logistic_regression_1_predictions > 0.5, "fraud", "not_fraud")
 print(paste0("Logistic Regression Test Accuracy on 1% subset: ", sum(logistic_regression_1_class_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
 print("Confusion Matrix for Logistic Regression on 1% subset:")
-print(table(test_set_list[[1]][[target_name]], logistic_regression_1_class_predictions))
+print(table(test_set_list[[1]][[target_name]], logistic_regression_1_predictions))
 
 # # - SVM
 svm_1 <- ksvm(predictors_formula, data = training_set_list[[1]], kernel = "rbfdot")
@@ -280,64 +276,132 @@ print(table(test_set_list[[1]][[target_name]], nearest_shrunken_centroids_1_pred
 **The models seem to be predicting the majority class (not fraud) for almost all rows. This means the models achieve \~94.5% accuracy, but this is only because the dataset is imbalance with around 5.5% of all observations being fraud. These models are not ideal for a final model. They just serve a decent baseline to understanding how models are likely to perform with no tuning.**
 
 ```{r}
+# Based on the above results, minority class occurences need to be amplified/resampled for models to predict fraud cases more accurately
+# Try resampling with smote and tuning to see if this helps the models perform better on the 1% subset
 set.seed(SEED)
-ctrl <- trainControl(method = "cv",
-                     summaryFunction = twoClassSummary,
-                     classProbs = TRUE,
-                     savePredictions = TRUE)
+ctrl <- trainControl(method = "cv", number = 5, summaryFunction = twoClassSummary, classProbs = TRUE, sampling = "smote")
 
-lr_models <- list()
-testResults_list <- list()
-subset_labels <- c("1%", "5%", "10%")
+# - Random Forest
+tuned_rf_1 <- train(predictors_formula, data = training_set_list[[1]], method = "rf", metric = "ROC", trControl = ctrl, tuneLength = 3)
+tuned_rf_1_predictions <- predict(tuned_rf_1, newdata = test_set_list[[1]])
+print(paste0("Tuned Random Forest Test Accuracy on 1% subset: ", sum(tuned_rf_1_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned Random Forest on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_rf_1_predictions))
 
-for (i in 1:3) {
-    print(paste0("Logistic Regression — ", subset_labels[i], " subset"))
+# - Logistic Regression
+tuned_lr_1 <- train(predictors_formula, data = training_set_list[[1]], method = "glm", metric = "ROC", trControl = ctrl, tuneLength = 3)
+tuned_lr_1_predictions <- predict(tuned_lr_1, newdata = test_set_list[[1]])
+print(paste0("Tuned Logistic Regression Test Accuracy on 1% subset: ", sum(tuned_lr_1_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned Logistic Regression on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_lr_1_predictions))
 
-    trainData <- training_set_list[[i]]
-    testData <- test_set_list[[i]]
-    predictor_cols <- predictors_name_list
+# - SVM
+tuned_svm_1 <- train(predictors_formula, data = training_set_list[[1]], method = "svmRadial", metric = "ROC", trControl = ctrl, tuneLength = 3)
+tuned_svm_1_predictions <- predict(tuned_svm_1, newdata = test_set_list[[1]])
+print(paste0("Tuned SVM Test Accuracy on 1% subset: ", sum(tuned_svm_1_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned SVM on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_svm_1_predictions))
 
-    lrFit <- train(x = trainData[, predictor_cols],
-                   y = trainData$is_fraud,
-                   method = "glm",
-                   metric = "ROC",
-                   trControl = ctrl)
-    print(lrFit)
-    lr_models[[i]] <- lrFit
+# - KNN
+tuned_knn_1 <- train(predictors_formula, data = training_set_list[[1]], method = "knn", metric = "ROC", trControl = ctrl, tuneLength = 3)
+tuned_knn_1_predictions <- predict(tuned_knn_1, newdata = test_set_list[[1]])
+print(paste0("Tuned KNN Test Accuracy on 1% subset: ", sum(tuned_knn_1_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned KNN on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_knn_1_predictions))
 
-    # Confusion matrix from cross-validated predictions
-    lrCM <- confusionMatrix(lrFit, norm = "none")
-    print(lrCM)
+# - Neural Network
+tuned_nn_1 <- train(predictors_formula, data = training_set_list[[1]], method = "nnet", metric = "ROC", trControl = ctrl, tuneLength = 3)
+tuned_nn_1_predictions <- predict(tuned_nn_1, newdata = test_set_list[[1]])
+print(paste0("Tuned Neural Network Test Accuracy on 1% subset: ", sum(tuned_nn_1_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned Neural Network on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_nn_1_predictions))
 
-    # ROC curve from cross-validated predictions
-    lrRoc <- roc(response = lrFit$pred$obs,
-                predictor = lrFit$pred$fraud,
-                levels = rev(levels(lrFit$pred$obs)))
-    plot(lrRoc, legacy.axes = TRUE, main = paste("Logistic Regression ROC -", subset_labels[i]))
-    print(paste0("AUC for the ", subset_labels[i], " subset: ", round(lrRoc$auc, 3)))
+# - Naive Bayes
+tuned_nb_1 <- train(predictors_formula, data = training_set_list[[1]], method = "naive_bayes", metric = "ROC", trControl = ctrl, tuneLength = 3)
+tuned_nb_1_predictions <- predict(tuned_nb_1, newdata = test_set_list[[1]])
+print(paste0("Tuned Naive Bayes Test Accuracy on 1% subset: ", sum(tuned_nb_1_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned Naive Bayes on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_nb_1_predictions))
 
-    # Variable importance
-    lrImp <- varImp(lrFit, scale = FALSE)
-    plot(lrImp)
+# - Linear Discriminant Analysis
+tuned_lda_1 <- train(predictors_formula, data = training_set_list[[1]], method = "lda", metric = "ROC", trControl = ctrl, tuneLength = 3)
+tuned_lda_1_predictions <- predict(tuned_lda_1, newdata = test_set_list[[1]])
+print(paste0("Tuned LDA Test Accuracy on 1% subset: ", sum(tuned_lda_1_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned LDA on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_lda_1_predictions))
 
-    # Saving test-set predictions for the later model comparison step
-    testResults_list[[i]] <- data.frame(obs = testData$is_fraud,
-                                         LR = predict(lrFit, testData[, predictor_cols]))
-}
+# - Penalized Logistic Regression
+tuned_plr_1 <- train(predictors_formula, data = training_set_list[[1]], method = "glmnet", family = "binomial", metric = "ROC", trControl = ctrl, tuneLength = 3)
+tuned_plr_1_predictions <- predict(tuned_plr_1, newdata = test_set_list[[1]])
+print(paste0("Tuned Penalized Logistic Regression Test Accuracy on 1% subset: ", sum(tuned_plr_1_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned Penalized Logistic Regression on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_plr_1_predictions))
+
+# - Nearest Shrunken Centroids
+tuned_nsc_1 <- train(predictors_formula, data = training_set_list[[1]], method = "pam", metric = "ROC", trControl = ctrl, tuneLength = 3)
+tuned_nsc_1_predictions <- predict(tuned_nsc_1, newdata = test_set_list[[1]])
+print(paste0("Tuned Nearest Shrunken Centroids Test Accuracy on 1% subset: ", sum(tuned_nsc_1_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned Nearest Shrunken Centroids on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_nsc_1_predictions))
 ```
 
 ```{r}
+# Logistic Regression, Naive Bayes, LDA, PLR, and NSC perform much better and train relatively quickly
+# They are the current candidates for best model and will receive more tuning and evaluation
+set.seed(SEED)
+ctrl_2 <- trainControl(method = "cv", number = 5, summaryFunction = twoClassSummary, classProbs = TRUE, sampling = "smote")
 
+# Logistic Regression
+tuned_lr_2 <- train(predictors_formula, data = training_set_list[[1]], method = "glm", metric = "ROC", trControl = ctrl_2, tuneLength = 10)
+tuned_lr_2_predictions <- predict(tuned_lr_2, newdata = test_set_list[[1]])
+print(paste0("Tuned Logistic Regression Test Accuracy on 1% subset: ", sum(tuned_lr_2_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned Logistic Regression on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_lr_2_predictions))
+
+# Naive Bayes
+tuned_nb_2 <- train(predictors_formula, data = training_set_list[[1]], method = "naive_bayes", metric = "ROC", trControl = ctrl_2, tuneLength = 10)
+tuned_nb_2_predictions <- predict(tuned_nb_2, newdata = test_set_list[[1]])
+print(paste0("Tuned Naive Bayes Test Accuracy on 1% subset: ", sum(tuned_nb_2_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned Naive Bayes on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_nb_2_predictions))
+
+# LDA
+tuned_lda_2 <- train(predictors_formula, data = training_set_list[[1]], method = "lda", metric = "ROC", trControl = ctrl_2, tuneLength = 10)
+tuned_lda_2_predictions <- predict(tuned_lda_2, newdata = test_set_list[[1]])
+print(paste0("Tuned LDA Test Accuracy on 1% subset: ", sum(tuned_lda_2_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned LDA on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_lda_2_predictions))
+
+# PLR
+tuned_plr_2 <- train(predictors_formula, data = training_set_list[[1]], method = "glmnet", family = "binomial", metric = "ROC", trControl = ctrl_2, tuneLength = 10)
+tuned_plr_2_predictions <- predict(tuned_plr_2, newdata = test_set_list[[1]])
+print(paste0("Tuned Penalized Logistic Regression Test Accuracy on 1% subset: ", sum(tuned_plr_2_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned Penalized Logistic Regression on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_plr_2_predictions))
+
+# NSC
+tuned_nsc_2 <- train(predictors_formula, data = training_set_list[[1]], method = "pam", metric = "ROC", trControl = ctrl_2, tuneLength = 10)
+tuned_nsc_2_predictions <- predict(tuned_nsc_2, newdata = test_set_list[[1]])
+print(paste0("Tuned Nearest Shrunken Centroids Test Accuracy on 1% subset: ", sum(tuned_nsc_2_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print("Confusion Matrix for Tuned Nearest Shrunken Centroids on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], tuned_nsc_2_predictions))
 ```
 
 ```{r}
+# Of the above models, Nearest Shrunken Centroids had the highest accuracy and had and accuracy of 49/105 on the fraud cases
+# This shows significant improvement and will be our final model
+set.seed(SEED)
+ctrl_final <- trainControl(method = "cv", number = 5, summaryFunction = twoClassSummary, classProbs = TRUE, sampling = "smote", savePredictions = TRUE)
+final_model <- train(predictors_formula, data = training_set_list[[1]], method = "pam", metric = "ROC", trControl = ctrl_final, tuneLength = 25)
+final_model_predictions <- predict(final_model, newdata = test_set_list[[1]])
+print(paste0("Final Model Test Accuracy on 1% subset: ", sum(final_model_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+print(paste0("Final Model Test Accuracy on Fraud Cases: ", sum(final_model_predictions[test_set_list[[1]][[target_name]] == "fraud"] == "fraud") / sum(test_set_list[[1]][[target_name]] == "fraud")))
+print("Confusion Matrix for Final Model on 1% subset:")
+print(table(test_set_list[[1]][[target_name]], final_model_predictions))
 
-```
-
-```{r}
-
-```
-
-```{r}
-
+# Plot ROC curve and feature importance for the final model
+nsc_roc <- roc(response = final_model$pred$obs,predictor = final_model$pred$fraud, levels = rev(levels(final_model$pred$obs)))
+nsc_imp <- varImp(final_model)
+plot(nsc_roc, legacy.axes = TRUE, main = "Nearest Shrunken Centroids ROC Curve")
+plot(nsc_imp, main = "Nearest Shrunken Centroids Feature Importance")
 ```

@@ -28,10 +28,10 @@ git clone https://github.com/cameronmoran23/ADS503-Group3-FinalProject
 ## Project Objective/Goals:
 This project applies predictive modeling techniques to detect fraudulent bank transactions using a large-scale synthetic data set of one million transactions. The team conducts exploratory data analysis, addresses significant class imbalance using re sampling techniques, and builds and compares multiple classification models. Model performance is evaluated using AUC-ROC, precision, recall, and F1-score.
 
-### Methods Used (Will add later)
+### Methods Used
 - Exploratory Data Analysis: distributions, correlations, and relationship between predictors and the target variables
 -Data pre-processing and cleaning
-- Resampling Techniques to address class imbalance
+- Resampling Techniques to address class imbalance (SMOTE)
 - Building and comparing multiple classification models
 - Model evaluation using AUC-ROC, precision, recall, and F1-score
 
@@ -50,8 +50,12 @@ The dataset is sourced from kaggle (Bank Transaction Fraud Detection Dataest), c
 - Subsetted the data into 1%, 5%, 10%, 25%, and 50% samples to manage long training times on the full dataset (see Challenges Faced below).
 - For modeling, predictors were centered and scaled; PCA may also be applied.
 
-
-### Modeling (ADD LATER)
+### Modeling
+- Used a variety of classification models: Random Forest, Logistic Regression, SVM, KNN, Neural Network, Naive Bayes, Linear Discriminant Analysis, Penalized Logistic Regression, and Nearest Shrunken Centroids
+- K-fold cross validation and tuning were used to try to improve model performance
+- SMOTE resampling was used to account for the class imbalance present in the data
+- Went through multiple rounds of training/tuning and eliminated underperforming models at each step
+- The best performing model was the Nearest Shrunken Centroids model, which had over 65% accuracy and was able to correctly identify fraud around 50% of the time
 
 ### Challenges faced:
 - The dataset is 1 million rows by 26 columns. Since the dataset is so large, we ran into long wait times when training models. To address this, we created smaller subsets of the data (1%, 5%, 10%, 25%, 50%) to train and compare models on before scaling up.

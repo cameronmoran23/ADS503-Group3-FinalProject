@@ -220,10 +220,9 @@ print("Confusion Matrix for Random Forest on 1% subset:")
 print(table(test_set_list[[1]][[target_name]], random_forest_1_predictions))
 
 # - Logistic Regression
-logistic_regression_1 <- glm(predictors_formula, data = training_set_list[[1]], family = binomial)
-logistic_regression_1_predictions <- predict(logistic_regression_1, newdata = test_set_list[[1]])
-logistic_regression_1_class_predictions <- ifelse(logistic_regression_1_predictions > 0.5, "fraud", "not_fraud")
-print(paste0("Logistic Regression Test Accuracy on 1% subset: ", sum(logistic_regression_1_class_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
+logistic_regression_1 <- train(predictors_formula, data = training_set_list[[1]], method = "glm", family = "binomial", tuneLength = 1)
+logistic_regression_1_predictions <- predict(logistic_regression_1, newdata = test_set_list[[1]], type = "response")
+print(paste0("Logistic Regression Test Accuracy on 1% subset: ", sum(logistic_regression_1_predictions == test_set_list[[1]][[target_name]]) / nrow(test_set_list[[1]])))
 print("Confusion Matrix for Logistic Regression on 1% subset:")
 print(table(test_set_list[[1]][[target_name]], logistic_regression_1_predictions))
 
